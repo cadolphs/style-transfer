@@ -1,4 +1,11 @@
 # Journal
+## 2023-10-20: Diving into the code
+The repo linked in the paper is a bit tough to dive into because the true logic seems well hidden in the configuration files. I think I'll have to pry this apart piece by piece. 
+So, what's a good way of defining milestones here? Let's do a few observations:
+
+* Original repo uses OmegaConf and Pytorch Lightning. Do these things play nicely with modal.com?
+* 
+
 ## 2023-10-03: Reading the paper
 * The paper is fine, but the real deal will be in the code. So, next step: Clone the repo and dig around.
 * Training has to be done per style image (takes 20 minutes on consumer hardware o_O)
