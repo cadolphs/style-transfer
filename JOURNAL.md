@@ -1,4 +1,20 @@
 # Journal
+## 2023-10-29: Few more thoughts
+Been mulling over the best approach for this, going through some examples on modal.com. It seems rather than retro-fitting or re-writing the whole of that InST repo to support modal, I could have modal in my own project and just as part of the container image do a git clone of the InST repo (or my own fork thereof). The idea being that I can do a few patches where necessary (e.g. having a volume where the trained style checkpoints would be stored) instead of trying to make everything work with it.
+
+There are examples of this on the modal repo, too. Because the InST model is something hand-crafted, I can't just pull in a ready-made model and pipeline from HuggingFace.
+
+With that, then, the first milestone would be to get the InST repo "more or less as is" running via modal. 
+Turning that into user stories / tasks, I could split that up even further. And because I'm new at all this, I make the milestones deliberately small.
+
+1. I can run modal with "my own" git repo cloned.
+2. I can build a modal container with the Stable Diffusion 1.4 checkpoint (as originally required by InST) downloaded.
+3. My code can put some output file (hardcoded and simple) into a persistent volume (those will become the checkpoints)
+4. With hardcoded params that should lead to _very_ fast training, I can run the original script with original settings (other than low number of steps / epochs) and get the output stored.
+5. I can then run _inference_ on the stored output.
+
+That would be a first milestone where, even with hardcoded stuff and everything too simple to make sense, I'd be invoking the whole pipeline end to end. Of course it'd be lacking a web gui and better parameters. That'll come next.
+
 ## 2023-10-20: Diving into the code
 The repo linked in the paper is a bit tough to dive into because the true logic seems well hidden in the configuration files. I think I'll have to pry this apart piece by piece. 
 So, what's a good way of defining milestones here? Let's do a few observations:
