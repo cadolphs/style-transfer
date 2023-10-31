@@ -3,7 +3,7 @@ from pathlib import Path
 import os
 
 MODEL_URL = "https://huggingface.co/CompVis/stable-diffusion-v-1-4-original/resolve/main/sd-v1-4.ckpt"
-MODEL_PATH = "/root/InST/models/sd/sd-v1-4.ckpt"
+MODEL_PATH = "/root/models/sd/sd-v1-4.ckpt"
 STYLE_MODEL_PATH = Path("/style_model")
 
 
@@ -29,12 +29,12 @@ def download_sd14():
 image = (
     Image.debian_slim(python_version="3.10")
     .pip_install("httpx", "tqdm")
+    .run_commands("mkdir -p /root/models/sd")
+    .run_function(download_sd14)
     .apt_install("git")
     .run_commands(
         "cd /root && git clone --depth 1 https://github.com/cadolphs/InST.git",
-        "cd /root/InST && mkdir -p models/sd/",
     )
-    .run_function(download_sd14)
 )
 
 # Persisted volume to use for our pretrained styles:
