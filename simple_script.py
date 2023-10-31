@@ -1,8 +1,10 @@
-from modal import Image, Stub
+from modal import Image, Stub, Volume
+from pathlib import Path
 import os
 
 MODEL_URL = "https://huggingface.co/CompVis/stable-diffusion-v-1-4-original/resolve/main/sd-v1-4.ckpt"
 MODEL_PATH = "/root/InST/models/sd/sd-v1-4.ckpt"
+STYLE_MODEL_PATH = Path("/style_model")
 
 
 def download_sd14():
@@ -35,7 +37,11 @@ image = (
     .run_function(download_sd14)
 )
 
+# Persisted volume to use for our pretrained styles:
+volume = Volume.persisted("inst-style-volume")
+
 stub = Stub(name="simple_script", image=image)
+stub.volume = volume
 
 
 @stub.function()
@@ -44,6 +50,23 @@ def verify_image():
     assert os.path.exists(MODEL_PATH), "Model not found"
 
 
+@stub.function(volumes={str(STYLE_MODEL_PATH): volume})
+def put_something_into_volume():
+    with open("/style_model/somefile.txt", "w") as f:
+        f.write("hello world")
+    stub.volume.commit()
+
+
+@stub.function(volumes={str(STYLE_MODEL_PATH): volume})
+def verify_wrote_into_volume():
+    stub.volume.reload()
+    assert os.path.exists("/style_model/somefile.txt"), "File not found"
+    with open("/style_model/somefile.txt", "r") as f:
+        assert f.read() == "hello world", "File contents incorrect"
+
+
 @stub.local_entrypoint()
 def main():
     verify_image.remote()
+    put_something_into_volume.remote()
+    verify_wrote_into_volume.remote()
