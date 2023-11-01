@@ -27,14 +27,23 @@ def download_sd14():
 
 
 image = (
-    Image.debian_slim(python_version="3.10")
-    .pip_install("httpx", "tqdm")
+    Image.from_registry(
+        "nvidia/cuda:12.2.2-cudnn8-runtime-ubuntu22.04",
+        add_python="3.11",
+    )
+    .run_commands(
+        "apt-get update",
+        "apt-get install -y git",
+        "pip3 install torch torchvision numpy httpx tqdm albumentations opencv-python pudb imageio imageio-ffmpeg pytorch-lightning omegaconf test-tube streamlit setuptools pillow einops torch-fidelity transformers torchmetrics kornia -e git+https://github.com/CompVis/taming-transformers.git@master#egg=taming-transformers -e git+https://github.com/openai/CLIP.git@main#egg=clip",
+    )
     .run_commands("mkdir -p /root/models/sd")
     .run_function(download_sd14)
-    .apt_install("git")
     .run_commands(
         "cd /root && git clone --depth 1 https://github.com/cadolphs/InST.git",
+        # force_build=True,
     )
+    .run_commands("pip3 install pytorch-lightning==1.6.5")
+    .run_commands("cd /root/InST && pip3 install -e .")
 )
 
 # Persisted volume to use for our pretrained styles:
@@ -65,8 +74,21 @@ def verify_wrote_into_volume():
         assert f.read() == "hello world", "File contents incorrect"
 
 
+@stub.function()
+def check_import_of_inst_main():
+    import sys
+
+    sys.path.append("/root")
+    sys.path.append("/root/InST")
+    from InST.main import main as inst_main
+
+    # assert that inst_main is a function
+    assert callable(inst_main), "inst_main is not a function"
+
+
 @stub.local_entrypoint()
 def main():
     verify_image.remote()
     put_something_into_volume.remote()
     verify_wrote_into_volume.remote()
+    check_import_of_inst_main.remote()
