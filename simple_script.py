@@ -86,9 +86,18 @@ def check_import_of_inst_main():
     assert callable(inst_main), "inst_main is not a function"
 
 
+@stub.function()
+def run_main():
+    import os
+
+    # call main.py from InST repo
+    os.system("python3 /root/InST/main.py --help")
+
+
 @stub.local_entrypoint()
 def main():
-    verify_image.remote()
-    put_something_into_volume.remote()
-    verify_wrote_into_volume.remote()
-    check_import_of_inst_main.remote()
+    # verify_image.remote()
+    # put_something_into_volume.remote()
+    # verify_wrote_into_volume.remote()
+    # check_import_of_inst_main.remote()
+    run_main.remote()
