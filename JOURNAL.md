@@ -1,4 +1,16 @@
 # Journal
+## 2023-11-02: Milestone update
+1. ✅I can run modal with "my own" git repo cloned.
+2. ✅I can build a modal container with the Stable Diffusion 1.4 checkpoint (as originally required by InST) downloaded.
+3. ✅My code can put some output file (hardcoded and simple) into a persistent volume (those will become the checkpoints)
+4. With hardcoded params that should lead to _very_ fast training, I can run the original script with original settings (other than low number of steps / epochs) and get the output stored.
+5. I can then run _inference_ on the stored output.
+
+In preparation for point 4, I spent a lot of time getting the image set up correctly with the conda environment. I'm not sure I've got it 100% right. I only will know that once I've actually run step 4. But I can get all the way to the point that I can import the `main.py` from the `InST` repo.
+
+Now I guess instead of running things from within Python, which would require me to rejig the things in `main.py` to deal with the command line parsing of the original script, I could just 
+_run_ the script. Maybe that's what I'll try next.
+
 ## 2023-10-29: Few more thoughts
 Been mulling over the best approach for this, going through some examples on modal.com. It seems rather than retro-fitting or re-writing the whole of that InST repo to support modal, I could have modal in my own project and just as part of the container image do a git clone of the InST repo (or my own fork thereof). The idea being that I can do a few patches where necessary (e.g. having a volume where the trained style checkpoints would be stored) instead of trying to make everything work with it.
 
