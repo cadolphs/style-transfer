@@ -1,4 +1,9 @@
 # Journal
+## 2023-11-03: It runs. Sort of.
+Okay, adding the missing `__init__.py` did the trick. Then there were issues with newer CUDA versions or something about the device not being correct that required a quick fix in the InST repo.
+
+Now it seems to be running and training. Before I do that for a full run, though, I'll want to sort out the saving of model artifacts.
+
 ## 2023-11-02: Milestone update
 1. ✅I can run modal with "my own" git repo cloned.
 2. ✅I can build a modal container with the Stable Diffusion 1.4 checkpoint (as originally required by InST) downloaded.
@@ -9,7 +14,14 @@
 In preparation for point 4, I spent a lot of time getting the image set up correctly with the conda environment. I'm not sure I've got it 100% right. I only will know that once I've actually run step 4. But I can get all the way to the point that I can import the `main.py` from the `InST` repo.
 
 Now I guess instead of running things from within Python, which would require me to rejig the things in `main.py` to deal with the command line parsing of the original script, I could just 
-_run_ the script. Maybe that's what I'll try next.
+_run_ the script. Maybe that's what I'll try next. ✅
+
+Now I think step 4 in the milestone list should be broken down a bit more, just so I can sneak things in when I have time. First, I'll need a target style image. Next, I'll need to figure 
+out where the code stores the output checkpoints and how I can get my hands on that.
+
+First, I can just copy over a file and hardcode its location in the _image_. Long-term I'll want it to be better.
+Next, I just use `os.system("python3 main.py ...)` to invoke the script. Trying that right now, and the issue is that the `pip` installed git repos aren't importable because 
+their modules don't contain `__init__` files. Looks like I have to fix that myself...
 
 ## 2023-10-29: Few more thoughts
 Been mulling over the best approach for this, going through some examples on modal.com. It seems rather than retro-fitting or re-writing the whole of that InST repo to support modal, I could have modal in my own project and just as part of the container image do a git clone of the InST repo (or my own fork thereof). The idea being that I can do a few patches where necessary (e.g. having a volume where the trained style checkpoints would be stored) instead of trying to make everything work with it.

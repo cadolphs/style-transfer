@@ -34,16 +34,18 @@ image = (
     .run_commands(
         "apt-get update",
         "apt-get install -y git",
-        "pip3 install torch torchvision numpy httpx tqdm albumentations opencv-python pudb imageio imageio-ffmpeg pytorch-lightning omegaconf test-tube streamlit setuptools pillow einops torch-fidelity transformers torchmetrics kornia -e git+https://github.com/CompVis/taming-transformers.git@master#egg=taming-transformers -e git+https://github.com/openai/CLIP.git@main#egg=clip",
+        "pip3 install torch torchvision numpy httpx tqdm albumentations opencv-python pudb imageio imageio-ffmpeg pytorch-lightning omegaconf test-tube streamlit setuptools pillow einops torch-fidelity transformers torchmetrics kornia git+https://github.com/cadolphs/taming-transformers.git@master#egg=taming-transformers git+https://github.com/openai/CLIP.git@main#egg=clip",
     )
     .run_commands("mkdir -p /root/models/sd")
     .run_function(download_sd14)
     .run_commands(
         "cd /root && git clone --depth 1 https://github.com/cadolphs/InST.git",
-        # force_build=True,
+        force_build=True,
     )
     .run_commands("pip3 install pytorch-lightning==1.6.5")
     .run_commands("cd /root/InST && pip3 install -e .")
+    .run_commands("mkdir -p /root/images")
+    .copy_local_file("large_blue_horses.jpg", "/root/images/large_blue_horses.jpg")
 )
 
 # Persisted volume to use for our pretrained styles:
@@ -86,12 +88,22 @@ def check_import_of_inst_main():
     assert callable(inst_main), "inst_main is not a function"
 
 
-@stub.function()
+@stub.function(gpu="any")
 def run_main():
     import os
 
     # call main.py from InST repo
-    os.system("python3 /root/InST/main.py --help")
+    # os.system("python3 /root/InST/main.py --help")
+    os.system(
+        f"cd /root/InST/ && python3 main.py --base configs/stable-diffusion/v1-finetune.yaml\
+            -t \
+            --actual_resume {MODEL_PATH}\
+            -n horses \
+            --gpus 0, \
+            --data_root /root/images \
+            --lightning.trainer.max_steps 2 \
+            "
+    )
 
 
 @stub.local_entrypoint()
