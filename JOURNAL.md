@@ -4,6 +4,10 @@ Okay, adding the missing `__init__.py` did the trick. Then there were issues wit
 
 Now it seems to be running and training. Before I do that for a full run, though, I'll want to sort out the saving of model artifacts.
 
+Well. Always some issues with timeouts, and `trainer.test()` not working. And the whole Omegaconf thing makes it really hard to know where I could set parameters so the test run is short and sweet.
+Found the ArtFusion Style Transfer paper, which might be a better bet, especially since it's already pretrained and does "arbitary" style transfer, i.e., doesn't need to get re-trained on each image. Not sure if it would achieve 
+similar quality, but at least I might be able to get it to run more directly.
+
 ## 2023-11-02: Milestone update
 1. ✅I can run modal with "my own" git repo cloned.
 2. ✅I can build a modal container with the Stable Diffusion 1.4 checkpoint (as originally required by InST) downloaded.

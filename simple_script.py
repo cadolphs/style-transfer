@@ -40,7 +40,7 @@ image = (
     .run_function(download_sd14)
     .run_commands(
         "cd /root && git clone --depth 1 https://github.com/cadolphs/InST.git",
-        force_build=True,
+        # force_build=True,
     )
     .run_commands("pip3 install pytorch-lightning==1.6.5")
     .run_commands("cd /root/InST && pip3 install -e .")
@@ -55,55 +55,61 @@ stub = Stub(name="simple_script", image=image)
 stub.volume = volume
 
 
-@stub.function()
-def verify_image():
-    assert os.path.exists("/root/InST"), "InST not found"
-    assert os.path.exists(MODEL_PATH), "Model not found"
+# @stub.function()
+# def verify_image():
+#     assert os.path.exists("/root/InST"), "InST not found"
+#     assert os.path.exists(MODEL_PATH), "Model not found"
 
 
-@stub.function(volumes={str(STYLE_MODEL_PATH): volume})
-def put_something_into_volume():
-    with open("/style_model/somefile.txt", "w") as f:
-        f.write("hello world")
-    stub.volume.commit()
+# @stub.function(volumes={str(STYLE_MODEL_PATH): volume})
+# def put_something_into_volume():
+#     with open("/style_model/somefile.txt", "w") as f:
+#         f.write("hello world")
+#     stub.volume.commit()
 
 
-@stub.function(volumes={str(STYLE_MODEL_PATH): volume})
-def verify_wrote_into_volume():
-    stub.volume.reload()
-    assert os.path.exists("/style_model/somefile.txt"), "File not found"
-    with open("/style_model/somefile.txt", "r") as f:
-        assert f.read() == "hello world", "File contents incorrect"
+# @stub.function(volumes={str(STYLE_MODEL_PATH): volume})
+# def verify_wrote_into_volume():
+#     stub.volume.reload()
+#     assert os.path.exists("/style_model/somefile.txt"), "File not found"
+#     with open("/style_model/somefile.txt", "r") as f:
+#         assert f.read() == "hello world", "File contents incorrect"
 
 
-@stub.function()
-def check_import_of_inst_main():
-    import sys
+# @stub.function()
+# def check_import_of_inst_main():
+#     import sys
 
-    sys.path.append("/root")
-    sys.path.append("/root/InST")
-    from InST.main import main as inst_main
+#     sys.path.append("/root")
+#     sys.path.append("/root/InST")
+#     from InST.main import main as inst_main
 
-    # assert that inst_main is a function
-    assert callable(inst_main), "inst_main is not a function"
+#     # assert that inst_main is a function
+#     assert callable(inst_main), "inst_main is not a function"
 
 
-@stub.function(gpu="any")
+@stub.function(gpu="A10G", volumes={str(STYLE_MODEL_PATH): volume}, timeout=7200)
 def run_main():
     import os
 
     # call main.py from InST repo
-    # os.system("python3 /root/InST/main.py --help")
     os.system(
         f"cd /root/InST/ && python3 main.py --base configs/stable-diffusion/v1-finetune.yaml\
             -t \
             --actual_resume {MODEL_PATH}\
             -n horses \
+            --log_dir {STYLE_MODEL_PATH} \
             --gpus 0, \
             --data_root /root/images \
-            --lightning.trainer.max_steps 2 \
+            --no-test True\
             "
     )
+    volume.commit()
+
+
+@stub.function(volumes={str(STYLE_MODEL_PATH): volume})
+def explore_fs():
+    pass
 
 
 @stub.local_entrypoint()
