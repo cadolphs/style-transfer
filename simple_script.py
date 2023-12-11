@@ -8,6 +8,7 @@ MODEL_DIR = "/models"
 MODEL_NAME = "artfusion_r12_step=317673.ckpt"
 BASE_MODEL = "lagerbaer/artfusion"
 CKPT_PATH = f"{MODEL_DIR}/{MODEL_NAME}"
+CFG_PATH = f"{ARTFUSION_PATH}/configs/kl16_content12.yaml"
 
 stub = Stub("art-fusion")
 
@@ -23,6 +24,20 @@ def download_model_to_folder():
         local_dir=MODEL_DIR,
         token=os.environ["HUGGINGFACE_TOKEN"],
     )
+
+
+def instantiate_model():
+    """Useful to pre-load the required weights"""
+    import sys
+
+    sys.path.append(ARTFUSION_PATH)
+    from omegaconf import OmegaConf
+    from main import instantiate_from_config
+
+    config = OmegaConf.load(CFG_PATH)
+    config.model.params.ckpt_path = CKPT_PATH
+    config.model.params.first_stage_config.params.ckpt_path = None
+    model = instantiate_from_config(config.model)
 
 
 image = (
@@ -50,38 +65,12 @@ image = (
     .run_function(
         download_model_to_folder, secret=Secret.from_name("my-huggingface-secret")
     )
+    .run_function(instantiate_model)
 )
-
-
-@stub.function(image=image)
-def test_imports():
-    import cv2
-    import numpy as np
-    import torch
-    import torch.nn.functional as F
-    from pytorch_lightning import seed_everything
-    from PIL import ImageDraw, ImageFont, Image
-
-    from einops import rearrange
-    from omegaconf import OmegaConf
-    import albumentations
-
-    import sys
-
-    sys.path.append(ARTFUSION_PATH)
-    from main import instantiate_from_config
-    from ldm.models.diffusion.ddim import DDIMSampler
-
-    import os
-    import pathlib
-
-    assert pathlib.Path(MODEL_DIR, MODEL_NAME).exists()
-    return True
 
 
 @stub.function(image=image, gpu="any")
 def test_image_generation():
-    CFG_PATH = f"{ARTFUSION_PATH}/configs/kl16_content12.yaml"
     H = 256
     W = 256
     DDIM_STEPS = 250
