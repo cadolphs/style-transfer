@@ -103,8 +103,7 @@ def test_image_generation():
     model = instantiate_from_config(config.model)
     model = model.eval().to("cuda")
 
-    def preprocess_image(image_path, size=(W, H)):
-        image = Image.open(image_path)
+    def preprocess_image(image, size=(W, H)):
         if not image.mode == "RGB":
             image = image.convert("RGB")
         image = image.resize(size)
@@ -116,11 +115,9 @@ def test_image_generation():
     def tensor_to_rgb(x):
         return torch.clamp((x + 1.0) / 2.0, min=0.0, max=1.0)
 
-    def get_content_style_features(content_image_path, style_image_path, h=H, w=W):
-        style_image = preprocess_image(style_image_path)[None, :].to(DEVICE)
-        content_image = preprocess_image(content_image_path, size=(w, h))[None, :].to(
-            DEVICE
-        )
+    def get_content_style_features(content_image, style_image, h=H, w=W):
+        style_image = preprocess_image(style_image)[None, :].to(DEVICE)
+        content_image = preprocess_image(content_image, size=(w, h))[None, :].to(DEVICE)
 
         with torch.no_grad(), model.ema_scope("Plotting"):
             vgg_features = model.vgg(model.vgg_scaling_layer(style_image))
@@ -142,8 +139,8 @@ def test_image_generation():
         return c, c_null_style, c_null_content
 
     def style_transfer(
-        content_image_path,
-        style_image_path,
+        content_image,
+        style_image,
         h=H,
         w=W,
         content_s=1.0,
@@ -152,7 +149,7 @@ def test_image_generation():
         eta=ETA,
     ):
         c, c_null_style, c_null_content = get_content_style_features(
-            content_image_path, style_image_path, h, w
+            content_image, style_image, h, w
         )
 
         with torch.no_grad(), model.ema_scope("Plotting"):
@@ -187,9 +184,10 @@ def test_image_generation():
         f"{ARTFUSION_PATH}/data/styles/d523d66a2f745aff1d3db21be993093fc.jpg"
     )
 
-    x_samples = style_transfer(
-        content_image_path, style_image_path, content_s=0.5, style_s=2.0
-    )
+    content_image = Image.open(content_image_path)
+    style_image = Image.open(style_image_path)
+
+    x_samples = style_transfer(content_image, style_image, content_s=0.5, style_s=2.0)
 
     x_samples = convert_samples(x_samples)
 
