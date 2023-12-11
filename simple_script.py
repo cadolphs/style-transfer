@@ -70,7 +70,7 @@ image = (
 
 
 @stub.function(image=image, gpu="any")
-def test_image_generation():
+def test_image_generation(content_bytes=None, style_bytes=None):
     H = 256
     W = 256
     DDIM_STEPS = 250
@@ -90,6 +90,7 @@ def test_image_generation():
     import albumentations
 
     import sys
+    import io
 
     sys.path.append(ARTFUSION_PATH)
     from main import instantiate_from_config
@@ -184,14 +185,12 @@ def test_image_generation():
         f"{ARTFUSION_PATH}/data/styles/d523d66a2f745aff1d3db21be993093fc.jpg"
     )
 
-    content_image = Image.open(content_image_path)
-    style_image = Image.open(style_image_path)
+    content_image = Image.open(io.BytesIO(content_bytes))
+    style_image = Image.open(io.BytesIO(style_bytes))
 
     x_samples = style_transfer(content_image, style_image, content_s=0.5, style_s=2.0)
 
     x_samples = convert_samples(x_samples)
-
-    import io
 
     img_bytes = io.BytesIO()
     x_samples.save(img_bytes, format="PNG")
@@ -200,8 +199,16 @@ def test_image_generation():
 
 
 @stub.local_entrypoint()
-def main():
-    image_bytes = test_image_generation.remote()
+def main(content_file_name: str, style_file_name: str):
+    import io
+    import sys
+
+    with open(content_file_name, "rb") as f:
+        content_bytes = io.BytesIO(f.read()).getvalue()
+    with open(style_file_name, "rb") as f:
+        style_bytes = io.BytesIO(f.read()).getvalue()
+
+    image_bytes = test_image_generation.remote(content_bytes, style_bytes)
     output_path = "output.png"
     with open(output_path, "wb") as f:
         f.write(image_bytes)
