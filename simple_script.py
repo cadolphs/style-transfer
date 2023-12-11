@@ -189,10 +189,7 @@ def test_image_generation():
         if isinstance(samples, (list, tuple)):
             samples = torch.cat(samples, dim=0)
 
-        samples = (
-            rearrange(samples, "(n m) c h w -> (m h) (n w) c", n=1).cpu().numpy()
-            * 255.0
-        )
+        samples = rearrange(samples[0, :], "c h w -> h w c").cpu().numpy() * 255.0
         samples = Image.fromarray(samples.astype(np.uint8))
         return samples
 
