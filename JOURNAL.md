@@ -1,4 +1,14 @@
 # Journal
+## 2023-12-11 Moving time
+Instead of journaling the nitty gritty here, I'll just use GitHub issues in the repo directly to explain what's going on.
+
+TL;DR, the ArtFusion paper and repo are great and I already got it running. You can easily try it for yourself by just cloning this repo and getting yourself set up with [modal](modal.com) (free!). Once you have that installed and got a token, 
+you can create your own style images with 
+
+`modal run simple_script.py --content-file-path [CONTENT_IMAGE] --style-file-path [STYLE_IMAGE]`
+
+and get the transformed image spat out in `output.png`. Obviously, more bells and whistles will follow.
+
 ## 2023-11-03: It runs. Sort of.
 Okay, adding the missing `__init__.py` did the trick. Then there were issues with newer CUDA versions or something about the device not being correct that required a quick fix in the InST repo.
 

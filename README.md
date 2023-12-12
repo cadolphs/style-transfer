@@ -5,6 +5,4 @@ In this project, I'll want to grab one of the recent papers on using diffusion (
 
 Stable Diffusion is _great_ at replicating the styles of artists, but techniques like `img2img` don't work well for style transfer because they tend to be too destructive on the original image's content unless supplemented with just the right text to condition.
 
-To begin, I'll experiment with the paper "Inversion-Based Style Transfer with Diffusion Models", https://arxiv.org/abs/2211.13203. I'll use this project to a) get more in-depth experience with diffusion models beyond having played around with Stable Diffusion and b) learn a bit about serverless computing. In particular, I'm trying out Modal (modal.com) to run things on the cloud with minimal setup. Between my actual job and three young kids, I want to spend my time solving the actual problems, not setting up AWS instances (or Paperspace notebooks or whatever).
-
-Check out the `journal.md` file for my thoughts and progress.
+Check out the `journal.md` file for my thoughts and progress. At this point, the repo is in a place where you can clone it and run it for yourself (check the journal for up-to-date setup instructions).
