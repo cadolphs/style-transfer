@@ -1,6 +1,6 @@
 # Starting with a clean slate
 
-from modal import Secret, Stub, Image
+from modal import Secret, Stub, Image, gpu
 
 ARTFUSION_GITHUB_PATH = "https://github.com/cadolphs/ArtFusion.git"
 ARTFUSION_PATH = "/git/artfusion/"
@@ -44,7 +44,6 @@ image = (
     Image.debian_slim()
     .apt_install("python3-opencv")
     .pip_install(
-        "opencv-python",
         "torch",
         "torchvision",
         "pytorch-lightning",
@@ -53,7 +52,6 @@ image = (
         "transformers",
         "imageio",
         "imageio-ffmpeg",
-        "albumentations",
         "hf-transfer~=0.1",
     )
     .apt_install("git")
@@ -69,7 +67,7 @@ image = (
 )
 
 
-@stub.function(image=image, gpu="any")
+@stub.function(image=image, gpu=gpu.Any())
 def test_image_generation(content_bytes=None, style_bytes=None):
     H = 256
     W = 256
@@ -78,16 +76,14 @@ def test_image_generation(content_bytes=None, style_bytes=None):
     SEED = 42
     DEVICE = "cuda"
 
-    import cv2
     import numpy as np
     import torch
-    import torch.nn.functional as F
+
     from pytorch_lightning import seed_everything
-    from PIL import ImageDraw, ImageFont, Image
+    from PIL import Image
 
     from einops import rearrange
     from omegaconf import OmegaConf
-    import albumentations
 
     import sys
     import io
@@ -107,7 +103,7 @@ def test_image_generation(content_bytes=None, style_bytes=None):
     def preprocess_image(image, size=(W, H)):
         if not image.mode == "RGB":
             image = image.convert("RGB")
-        image = image.resize(size)
+        image.thumbnail(size)
         image = np.array(image).astype(np.uint8)
         image = (image / 127.5 - 1.0).astype(np.float32)
         image = rearrange(image, "h w c -> c h w")
@@ -180,15 +176,17 @@ def test_image_generation(content_bytes=None, style_bytes=None):
         samples = Image.fromarray(samples.astype(np.uint8))
         return samples
 
-    content_image_path = f"{ARTFUSION_PATH}/data/contents/lofoton.jpg"
-    style_image_path = (
-        f"{ARTFUSION_PATH}/data/styles/d523d66a2f745aff1d3db21be993093fc.jpg"
-    )
-
     content_image = Image.open(io.BytesIO(content_bytes))
     style_image = Image.open(io.BytesIO(style_bytes))
 
-    x_samples = style_transfer(content_image, style_image, content_s=0.5, style_s=2.0)
+    x_samples = style_transfer(
+        content_image,
+        style_image,
+        content_s=1.0,
+        style_s=1.0,
+        h=1024,
+        w=1024,
+    )
 
     x_samples = convert_samples(x_samples)
 
@@ -201,7 +199,6 @@ def test_image_generation(content_bytes=None, style_bytes=None):
 @stub.local_entrypoint()
 def main(content_file_name: str, style_file_name: str):
     import io
-    import sys
 
     with open(content_file_name, "rb") as f:
         content_bytes = io.BytesIO(f.read()).getvalue()
