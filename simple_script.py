@@ -68,7 +68,9 @@ image = (
 
 
 @stub.function(image=image, gpu=gpu.Any())
-def test_image_generation(content_bytes=None, style_bytes=None):
+def test_image_generation(
+    content_bytes=None, style_bytes=None, content_strength=0.5, style_strength=1.0
+):
     H = 256
     W = 256
     DDIM_STEPS = 250
@@ -182,8 +184,8 @@ def test_image_generation(content_bytes=None, style_bytes=None):
     x_samples = style_transfer(
         content_image,
         style_image,
-        content_s=1.0,
-        style_s=1.0,
+        content_s=content_strength,
+        style_s=style_strength,
         h=1024,
         w=1024,
     )
@@ -197,7 +199,12 @@ def test_image_generation(content_bytes=None, style_bytes=None):
 
 
 @stub.local_entrypoint()
-def main(content_file_name: str, style_file_name: str):
+def main(
+    content_file_name: str,
+    style_file_name: str,
+    content_strength: float = 0.5,
+    style_strength: float = 1.0,
+):
     import io
 
     with open(content_file_name, "rb") as f:
@@ -205,7 +212,9 @@ def main(content_file_name: str, style_file_name: str):
     with open(style_file_name, "rb") as f:
         style_bytes = io.BytesIO(f.read()).getvalue()
 
-    image_bytes = test_image_generation.remote(content_bytes, style_bytes)
+    image_bytes = test_image_generation.remote(
+        content_bytes, style_bytes, content_strength, style_strength
+    )
     output_path = "output.png"
     with open(output_path, "wb") as f:
         f.write(image_bytes)
