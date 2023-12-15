@@ -102,6 +102,87 @@ def convert_samples(samples):
 
 @stub.cls(image=image, gpu=gpu.Any())
 class StyleTransfer:
+    def __enter__(self):
+        from omegaconf import OmegaConf
+        from pytorch_lightning import seed_everything
+        import sys
+
+        sys.path.append(ARTFUSION_PATH)
+        from main import instantiate_from_config
+
+        seed_everything(42)
+
+        config = OmegaConf.load(CFG_PATH)
+        config.model.params.ckpt_path = CKPT_PATH
+        config.model.params.first_stage_config.params.ckpt_path = None
+        model = instantiate_from_config(config.model)
+
+        self.model = model.eval().to("cuda")
+
+    def get_content_style_features(self, content_image, style_image, h, w):
+        import torch
+
+        DEVICE = "cuda"
+
+        model = self.model
+        style_image = preprocess_image(style_image)[None, :].to(DEVICE)
+        content_image = preprocess_image(content_image, size=(w, h))[None, :].to(DEVICE)
+
+        with torch.no_grad(), model.ema_scope("Plotting"):
+            vgg_features = model.vgg(model.vgg_scaling_layer(style_image))
+            c_style = model.get_style_features(vgg_features)
+            null_style = c_style.clone()
+            null_style[:] = model.null_style_vector.weight[0]
+
+            content_encoder_posterior = model.encode_first_stage(content_image)
+            content_encoder_posterior = model.get_first_stage_encoding(
+                content_encoder_posterior
+            )
+            c_content = model.get_content_features(content_encoder_posterior)
+            null_content = torch.zeros_like(c_content)
+
+        c = {"c1": c_content, "c2": c_style}
+        c_null_style = {"c1": c_content, "c2": null_style}
+        c_null_content = {"c1": null_content, "c2": c_style}
+
+        return c, c_null_style, c_null_content
+
+    def style_transfer(
+        self,
+        content_image,
+        style_image,
+        h,
+        w,
+        content_s,
+        style_s,
+        ddim_steps,
+        eta,
+    ):
+        import torch
+
+        c, c_null_style, c_null_content = self.get_content_style_features(
+            content_image, style_image, h, w
+        )
+        model = self.model
+        with torch.no_grad(), self.model.ema_scope("Plotting"):
+            samples = self.model.sample_log(
+                cond=c,
+                batch_size=1,
+                x_T=torch.rand_like(c["c1"]),
+                ddim=True,
+                ddim_steps=ddim_steps,
+                eta=eta,
+                unconditional_guidance_scale=content_s,
+                unconditional_conditioning=c_null_content,
+                unconditional_guidance_scale_2=style_s,
+                unconditional_conditioning_2=c_null_style,
+            )[0]
+
+            x_samples = self.model.decode_first_stage(samples)
+            x_samples = tensor_to_rgb(x_samples)
+
+        return x_samples
+
     @method()
     def generate(
         self,
@@ -116,100 +197,25 @@ class StyleTransfer:
         W = style_size
         DDIM_STEPS = 10  # 250
         ETA = 0  # 1
-        SEED = 42
+
         DEVICE = "cuda"
 
-        import numpy as np
-        import torch
-
-        from pytorch_lightning import seed_everything
         from PIL import Image
 
-        from omegaconf import OmegaConf
-
-        import sys
         import io
-
-        sys.path.append(ARTFUSION_PATH)
-        from main import instantiate_from_config
-        from ldm.models.diffusion.ddim import DDIMSampler
-
-        seed_everything(SEED)
-
-        config = OmegaConf.load(CFG_PATH)
-        config.model.params.ckpt_path = CKPT_PATH
-        config.model.params.first_stage_config.params.ckpt_path = None
-        model = instantiate_from_config(config.model)
-        model = model.eval().to("cuda")
-
-        def get_content_style_features(content_image, style_image, h=H, w=W):
-            style_image = preprocess_image(style_image)[None, :].to(DEVICE)
-            content_image = preprocess_image(content_image, size=(w, h))[None, :].to(
-                DEVICE
-            )
-
-            with torch.no_grad(), model.ema_scope("Plotting"):
-                vgg_features = model.vgg(model.vgg_scaling_layer(style_image))
-                c_style = model.get_style_features(vgg_features)
-                null_style = c_style.clone()
-                null_style[:] = model.null_style_vector.weight[0]
-
-                content_encoder_posterior = model.encode_first_stage(content_image)
-                content_encoder_posterior = model.get_first_stage_encoding(
-                    content_encoder_posterior
-                )
-                c_content = model.get_content_features(content_encoder_posterior)
-                null_content = torch.zeros_like(c_content)
-
-            c = {"c1": c_content, "c2": c_style}
-            c_null_style = {"c1": c_content, "c2": null_style}
-            c_null_content = {"c1": null_content, "c2": c_style}
-
-            return c, c_null_style, c_null_content
-
-        def style_transfer(
-            content_image,
-            style_image,
-            h=H,
-            w=W,
-            content_s=1.0,
-            style_s=1.0,
-            ddim_steps=DDIM_STEPS,
-            eta=ETA,
-        ):
-            c, c_null_style, c_null_content = get_content_style_features(
-                content_image, style_image, h, w
-            )
-
-            with torch.no_grad(), model.ema_scope("Plotting"):
-                samples = model.sample_log(
-                    cond=c,
-                    batch_size=1,
-                    x_T=torch.rand_like(c["c1"]),
-                    ddim=True,
-                    ddim_steps=ddim_steps,
-                    eta=eta,
-                    unconditional_guidance_scale=content_s,
-                    unconditional_conditioning=c_null_content,
-                    unconditional_guidance_scale_2=style_s,
-                    unconditional_conditioning_2=c_null_style,
-                )[0]
-
-                x_samples = model.decode_first_stage(samples)
-                x_samples = tensor_to_rgb(x_samples)
-
-            return x_samples
 
         content_image = Image.open(io.BytesIO(content_bytes))
         style_image = Image.open(io.BytesIO(style_bytes))
 
-        x_samples = style_transfer(
+        x_samples = self.style_transfer(
             content_image,
             style_image,
             content_s=content_strength,
             style_s=style_strength,
             h=max_size,
             w=max_size,
+            ddim_steps=DDIM_STEPS,
+            eta=ETA,
         )
 
         x_samples = convert_samples(x_samples)
