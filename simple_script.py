@@ -67,19 +67,52 @@ image = (
 )
 
 
+def preprocess_image(image, size=(256, 256)):
+    import numpy as np
+    import torch
+    from einops import rearrange
+
+    if not image.mode == "RGB":
+        image = image.convert("RGB")
+    image.thumbnail(size)
+    image = np.array(image).astype(np.uint8)
+    image = (image / 127.5 - 1.0).astype(np.float32)
+    image = rearrange(image, "h w c -> c h w")
+    return torch.from_numpy(image)
+
+
+def tensor_to_rgb(x):
+    import torch
+
+    return torch.clamp((x + 1.0) / 2.0, min=0.0, max=1.0)
+
+
+def convert_samples(samples):
+    from einops import rearrange
+    from PIL import Image
+    import numpy as np
+
+    if isinstance(samples, (list, tuple)):
+        samples = torch.cat(samples, dim=0)
+
+    samples = rearrange(samples[0, :], "c h w -> h w c").cpu().numpy() * 255.0
+    samples = Image.fromarray(samples.astype(np.uint8))
+    return samples
+
+
 @stub.function(image=image, gpu=gpu.Any())
 def test_image_generation(
     content_bytes=None,
     style_bytes=None,
     content_strength=0.5,
     style_strength=1.0,
-    max_size=512,
+    max_size=256,
     style_size=256,
 ):
     H = style_size
     W = style_size
-    DDIM_STEPS = 250
-    ETA = 1.0
+    DDIM_STEPS = 10  # 250
+    ETA = 0  # 1
     SEED = 42
     DEVICE = "cuda"
 
@@ -89,7 +122,6 @@ def test_image_generation(
     from pytorch_lightning import seed_everything
     from PIL import Image
 
-    from einops import rearrange
     from omegaconf import OmegaConf
 
     import sys
@@ -106,18 +138,6 @@ def test_image_generation(
     config.model.params.first_stage_config.params.ckpt_path = None
     model = instantiate_from_config(config.model)
     model = model.eval().to("cuda")
-
-    def preprocess_image(image, size=(W, H)):
-        if not image.mode == "RGB":
-            image = image.convert("RGB")
-        image.thumbnail(size)
-        image = np.array(image).astype(np.uint8)
-        image = (image / 127.5 - 1.0).astype(np.float32)
-        image = rearrange(image, "h w c -> c h w")
-        return torch.from_numpy(image)
-
-    def tensor_to_rgb(x):
-        return torch.clamp((x + 1.0) / 2.0, min=0.0, max=1.0)
 
     def get_content_style_features(content_image, style_image, h=H, w=W):
         style_image = preprocess_image(style_image)[None, :].to(DEVICE)
@@ -174,14 +194,6 @@ def test_image_generation(
             x_samples = tensor_to_rgb(x_samples)
 
         return x_samples
-
-    def convert_samples(samples):
-        if isinstance(samples, (list, tuple)):
-            samples = torch.cat(samples, dim=0)
-
-        samples = rearrange(samples[0, :], "c h w -> h w c").cpu().numpy() * 255.0
-        samples = Image.fromarray(samples.astype(np.uint8))
-        return samples
 
     content_image = Image.open(io.BytesIO(content_bytes))
     style_image = Image.open(io.BytesIO(style_bytes))
