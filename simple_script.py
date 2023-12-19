@@ -9,6 +9,7 @@ MODEL_NAME = "artfusion_r12_step=317673.ckpt"
 BASE_MODEL = "lagerbaer/artfusion"
 CKPT_PATH = f"{MODEL_DIR}/{MODEL_NAME}"
 CFG_PATH = f"{ARTFUSION_PATH}/configs/kl16_content12.yaml"
+DEVICE = "cuda"
 
 stub = Stub("art-fusion")
 
@@ -67,18 +68,18 @@ image = (
 )
 
 
-def preprocess_image(image, size=(256, 256)):
+def preprocess_image(image, size=(256, 256), max_size=256):
     import numpy as np
     import torch
     from einops import rearrange
 
     if not image.mode == "RGB":
         image = image.convert("RGB")
-    image.thumbnail(size)
+    image.thumbnail((max_size, max_size))
     image = np.array(image).astype(np.uint8)
     image = (image / 127.5 - 1.0).astype(np.float32)
     image = rearrange(image, "h w c -> c h w")
-    return torch.from_numpy(image)
+    return torch.from_numpy(image)[None, :].to(DEVICE)
 
 
 def tensor_to_rgb(x):
@@ -117,16 +118,16 @@ class StyleTransfer:
         config.model.params.first_stage_config.params.ckpt_path = None
         model = instantiate_from_config(config.model)
 
-        self.model = model.eval().to("cuda")
+        self.model = model.eval().to(DEVICE)
 
-    def get_content_style_features(self, content_image, style_image, h, w):
+    def get_content_style_features(
+        self, content_image, style_image, max_size=256, style_size=256
+    ):
         import torch
 
-        DEVICE = "cuda"
-
         model = self.model
-        style_image = preprocess_image(style_image)[None, :].to(DEVICE)
-        content_image = preprocess_image(content_image, size=(w, h))[None, :].to(DEVICE)
+        style_image = preprocess_image(style_image, max_size=style_size)
+        content_image = preprocess_image(content_image, max_size=max_size)
 
         with torch.no_grad(), model.ema_scope("Plotting"):
             vgg_features = model.vgg(model.vgg_scaling_layer(style_image))
@@ -151,19 +152,19 @@ class StyleTransfer:
         self,
         content_image,
         style_image,
-        h,
-        w,
         content_s,
         style_s,
         ddim_steps,
         eta,
+        max_size=None,
+        style_size=None,
     ):
         import torch
 
         c, c_null_style, c_null_content = self.get_content_style_features(
-            content_image, style_image, h, w
+            content_image, style_image, max_size=max_size, style_size=style_size
         )
-        model = self.model
+
         with torch.no_grad(), self.model.ema_scope("Plotting"):
             samples = self.model.sample_log(
                 cond=c,
@@ -192,14 +193,9 @@ class StyleTransfer:
         style_strength=1.0,
         max_size=256,
         style_size=256,
+        ddim_steps=10,
+        eta=0,
     ):
-        H = style_size
-        W = style_size
-        DDIM_STEPS = 10  # 250
-        ETA = 0  # 1
-
-        DEVICE = "cuda"
-
         from PIL import Image
 
         import io
@@ -212,10 +208,10 @@ class StyleTransfer:
             style_image,
             content_s=content_strength,
             style_s=style_strength,
-            h=max_size,
-            w=max_size,
-            ddim_steps=DDIM_STEPS,
-            eta=ETA,
+            max_size=max_size,
+            style_size=style_size,
+            ddim_steps=ddim_steps,
+            eta=eta,
         )
 
         x_samples = convert_samples(x_samples)
@@ -233,6 +229,9 @@ def main(
     content_strength: float = 0.5,
     style_strength: float = 1.0,
     max_size: int = 512,
+    style_size: int = 256,
+    eta: float = 0,
+    ddim_steps: int = 10,
 ):
     import io
 
@@ -241,11 +240,15 @@ def main(
     with open(style_file_name, "rb") as f:
         style_bytes = io.BytesIO(f.read()).getvalue()
 
-    # image_bytes = test_image_generation.remote(
-    #     content_bytes, style_bytes, content_strength, style_strength, max_size
-    # )
     image_bytes = StyleTransfer().generate.remote(
-        content_bytes, style_bytes, content_strength, style_strength, max_size
+        content_bytes,
+        style_bytes,
+        content_strength=content_strength,
+        style_strength=style_strength,
+        max_size=max_size,
+        style_size=style_size,
+        eta=eta,
+        ddim_steps=ddim_steps,
     )
     output_path = "output.png"
     with open(output_path, "wb") as f:
