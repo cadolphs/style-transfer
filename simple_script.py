@@ -14,7 +14,7 @@ DEVICE = "cuda"
 
 stub = Stub("art-fusion")
 
-from pydantic import BaseModel
+from fastapi import Form
 
 
 def download_model_to_folder():
@@ -260,11 +260,18 @@ def main(
         f.write(image_bytes)
 
 
-class GreetRequest(BaseModel):
-    name: str
-
-
 @stub.function(image=image, gpu=gpu.Any())
 @web_endpoint(method="POST")
-def greet(name: GreetRequest):
-    return {"greeting": f"Hello there, {name.name}"}
+def mirror(image_base64: str = Form(...)):
+    from PIL import Image, ImageOps
+    from io import BytesIO
+    import base64
+
+    im = Image.open(BytesIO(base64.b64decode(image_base64)))
+    im_mirror = ImageOps.mirror(im)
+
+    buff = BytesIO()
+    im_mirror.save(buff, format="PNG")
+    img_str = base64.b64encode(buff.getvalue())
+
+    return {"image_base64": img_str}
