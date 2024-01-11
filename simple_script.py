@@ -80,6 +80,9 @@ def preprocess_image(image, size=(256, 256), max_size=256):
 
     if not image.mode == "RGB":
         image = image.convert("RGB")
+    im_max_size = max(image.size)
+    max_size = min(max_size, im_max_size)
+
     image.thumbnail((max_size, max_size))
     image = np.array(image).astype(np.uint8)
     image = (image / 127.5 - 1.0).astype(np.float32)
@@ -196,7 +199,7 @@ class StyleTransfer:
         style_bytes=None,
         content_strength=0.5,
         style_strength=1.0,
-        max_size=256,
+        max_size=1024,
         style_size=256,
         ddim_steps=10,
         eta=0,
@@ -262,16 +265,28 @@ def main(
 
 @stub.function(image=image, gpu=gpu.Any())
 @web_endpoint(method="POST")
-def mirror(image_base64: str = Form(...)):
-    from PIL import Image, ImageOps
+def screamify(image_base64: str = Form(...)):
     from io import BytesIO
     import base64
 
-    im = Image.open(BytesIO(base64.b64decode(image_base64)))
-    im_mirror = ImageOps.mirror(im)
+    content_bytes = base64.b64decode(image_base64)
 
-    buff = BytesIO()
-    im_mirror.save(buff, format="PNG")
-    img_str = base64.b64encode(buff.getvalue())
+    with open(f"{EXAMPLE_STYLE_DIR}/scream.jpg", "rb") as f:
+        style_bytes = BytesIO(f.read()).getvalue()
+
+    print("Running style transfer")
+    image_bytes = StyleTransfer().generate.remote(
+        content_bytes,
+        style_bytes,
+        content_strength=0.5,
+        style_strength=1,
+        max_size=1024,
+        style_size=256,
+        eta=0.1,
+        ddim_steps=250,
+    )
+    print("Done")
+
+    img_str = base64.b64encode(image_bytes)
 
     return {"image_base64": img_str}
