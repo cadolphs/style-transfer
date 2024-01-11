@@ -1,6 +1,6 @@
 # Starting with a clean slate
 
-from modal import Secret, Stub, Image, gpu, method
+from modal import Secret, Stub, Image, gpu, method, web_endpoint
 
 ARTFUSION_GITHUB_PATH = "https://github.com/cadolphs/ArtFusion.git"
 ARTFUSION_PATH = "/git/artfusion/"
@@ -13,6 +13,8 @@ CFG_PATH = f"{ARTFUSION_PATH}/configs/kl16_content12.yaml"
 DEVICE = "cuda"
 
 stub = Stub("art-fusion")
+
+from pydantic import BaseModel
 
 
 def download_model_to_folder():
@@ -256,3 +258,13 @@ def main(
     output_path = "output.png"
     with open(output_path, "wb") as f:
         f.write(image_bytes)
+
+
+class GreetRequest(BaseModel):
+    name: str
+
+
+@stub.function(image=image, gpu=gpu.Any())
+@web_endpoint(method="POST")
+def greet(name: GreetRequest):
+    return {"greeting": f"Hello there, {name.name}"}
