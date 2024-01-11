@@ -282,8 +282,8 @@ def screamify(image_base64: str = Form(...)):
         style_strength=1,
         max_size=1024,
         style_size=256,
-        eta=0.1,
-        ddim_steps=250,
+        eta=0,
+        ddim_steps=10,
     )
     print("Done")
 
