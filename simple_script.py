@@ -109,7 +109,7 @@ def convert_samples(samples):
     return samples
 
 
-@stub.cls(image=image, gpu=gpu.Any())
+@stub.cls(image=image, gpu=gpu.T4(), container_idle_timeout=180)
 class StyleTransfer:
     def __enter__(self):
         from omegaconf import OmegaConf
