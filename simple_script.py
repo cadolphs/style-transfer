@@ -5,6 +5,7 @@ from modal import Secret, Stub, Image, gpu, method
 ARTFUSION_GITHUB_PATH = "https://github.com/cadolphs/ArtFusion.git"
 ARTFUSION_PATH = "/git/artfusion/"
 MODEL_DIR = "/models"
+EXAMPLE_STYLE_DIR = "/example_styles"
 MODEL_NAME = "artfusion_r12_step=317673.ckpt"
 BASE_MODEL = "lagerbaer/artfusion"
 CKPT_PATH = f"{MODEL_DIR}/{MODEL_NAME}"
@@ -65,6 +66,8 @@ image = (
         download_model_to_folder, secret=Secret.from_name("my-huggingface-secret")
     )
     .run_function(instantiate_model)
+    .run_commands(f"cd / && mkdir -p {EXAMPLE_STYLE_DIR}")
+    .copy_local_file("scream.jpg", f"{EXAMPLE_STYLE_DIR}/scream.jpg")
 )
 
 
