@@ -15,6 +15,7 @@ DEVICE = "cuda"
 stub = Stub("art-fusion")
 
 from fastapi import Form
+from pydantic import BaseModel
 
 
 def download_model_to_folder():
@@ -263,13 +264,26 @@ def main(
         f.write(image_bytes)
 
 
-@stub.function(image=image, gpu=gpu.Any())
+class Base64Image(BaseModel):
+    image_base64: str
+
+
+@stub.function(image=image, container_idle_timeout=180)
 @web_endpoint(method="POST")
-def screamify(image_base64: str = Form(...)):
+def screamify(image: Base64Image):
     from io import BytesIO
     import base64
+    import re
 
-    content_bytes = base64.b64decode(image_base64)
+    image_content = image.image_base64
+
+    if "," in image_content:
+        image_content = image_content.split(",")[1]
+
+    print("Image content [truncated]: ")
+    print(image_content[:200])
+
+    content_bytes = BytesIO(base64.b64decode(image_content)).getvalue()
 
     with open(f"{EXAMPLE_STYLE_DIR}/scream.jpg", "rb") as f:
         style_bytes = BytesIO(f.read()).getvalue()
@@ -278,12 +292,12 @@ def screamify(image_base64: str = Form(...)):
     image_bytes = StyleTransfer().generate.remote(
         content_bytes,
         style_bytes,
-        content_strength=0.5,
-        style_strength=1,
+        content_strength=1,
+        style_strength=3,
         max_size=1024,
         style_size=256,
-        eta=0,
-        ddim_steps=10,
+        eta=0.5,
+        ddim_steps=50,
     )
     print("Done")
 
