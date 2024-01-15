@@ -296,11 +296,12 @@ def screamify(image: Base64Image):
         style_strength=3,
         max_size=1024,
         style_size=256,
-        eta=0.5,
-        ddim_steps=50,
+        eta=0,
+        ddim_steps=10,
     )
     print("Done")
 
-    img_str = base64.b64encode(image_bytes)
+    img_str = base64.b64encode(image_bytes).decode("utf-8")
+    img_str = "data:image/png;base64," + img_str
 
     return {"image_base64": img_str}
